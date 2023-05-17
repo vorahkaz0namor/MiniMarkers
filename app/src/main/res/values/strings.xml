@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name" translatable="false">MiniMarkers</string>
+    <string name="seversk">Seversk</string>
+    <string name="native_land">This is my native land!</string>
+    <string name="permission_denied">Permission denied</string>
+    <string name="place_name">Place name</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="remove">Remove</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="seversk">Северск</string>
+    <string name="native_land">Это моя родная земля!</string>
+    <string name="permission_denied">В разрешении отказано</string>
+    <string name="place_name">Наименование места</string>
+    <string name="save">Сохранить</string>
+    <string name="cancel">Отмена</string>
+    <string name="remove">Удалить</string>
+</resources>
