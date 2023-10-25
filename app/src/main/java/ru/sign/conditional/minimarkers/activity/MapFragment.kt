@@ -23,6 +23,7 @@ import com.yandex.mapkit.geometry.Point
 import com.yandex.mapkit.layers.GeoObjectTapEvent
 import com.yandex.mapkit.layers.GeoObjectTapListener
 import com.yandex.mapkit.layers.ObjectEvent
+import com.yandex.mapkit.location.LocationManager
 import com.yandex.mapkit.map.*
 import com.yandex.mapkit.map.Map
 import com.yandex.mapkit.user_location.UserLocationLayer
@@ -49,8 +50,8 @@ class MapFragment :
     private lateinit var mapKitInstance: MapKit
     private lateinit var imageProvider: ImageProvider
     private var userPlaceMark: Point? = null
-    private var markers = mutableListOf<PlacemarkMapObject>()
-    private lateinit var placemarkCollection: MapObjectCollection
+    private val markers = hashMapOf<PlacemarkMapObject, MapObjectTapListener>()
+    private var placemarkCollection: MapObjectCollection? = null
     private var editingMarker: PlacemarkMapObject? = null
     private lateinit var userLocationLayer: UserLocationLayer
     private val requestPermissionsLauncher =
@@ -72,18 +73,19 @@ class MapFragment :
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         initMapKit()
         super.onViewCreated(view, savedInstanceState)
+        requestLocationPermission()
         viewScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 initViews()
                 setupListeners()
-                requestLocationPermission()
             }
         }
     }
 
     override fun onStart() {
         super.onStart()
-        placemarkCollection = binding.mapView.map.mapObjects.addCollection()
+        if (placemarkCollection == null)
+            placemarkCollection = binding.mapView.map.mapObjects.addCollection()
         mapKitInstance.onStart()
         binding.mapView.onStart()
     }
@@ -117,11 +119,12 @@ class MapFragment :
             isNightModeEnabled = true
             moveCamera(point = nativeLand)
         }
-        addUserMarker(
-            point = nativeLand,
-            text = getString(R.string.seversk),
-            description = getString(R.string.native_land)
-        )
+        markers.keys.find { it.geometry.latitude == nativeLand.latitude }
+            ?: addUserMarker(
+                point = nativeLand,
+                text = getString(R.string.seversk),
+                description = getString(R.string.native_land)
+            )
     }
 
     private fun setupListeners() {
@@ -134,7 +137,7 @@ class MapFragment :
         mapViewModel.shouldRemove.observe(viewLifecycleOwner) {
             if (it) {
                 editingMarker?.let { marker ->
-                    placemarkCollection.remove(marker)
+                    placemarkCollection?.remove(marker)
                     markers.remove(marker)
                 }
                 mapViewModel.clear()
@@ -150,31 +153,31 @@ class MapFragment :
     }
 
     private fun addUserMarker(point: Point, text: String, description: String? = null) {
-        if (markers.remove(editingMarker))
-            placemarkCollection.remove(editingMarker!!)
-        val marker =
-            placemarkCollection.addPlacemark(point).apply {
+        if (markers.remove(editingMarker) != null)
+            placemarkCollection?.remove(editingMarker!!)
+        placemarkCollection?.addPlacemark(point)?.apply {
+            moveCamera(point)
+            setIcon(imageProvider)
+            setText(text)
+            setTextStyle(TextStyle().apply {
+                placement = TextStyle.Placement.BOTTOM
+            })
+            userData = description ?: text
+            val tapListener = MapObjectTapListener { mapObject, point ->
                 moveCamera(point)
-                setIcon(imageProvider)
-                setText(text)
-                setTextStyle(TextStyle().apply {
-                    placement = TextStyle.Placement.BOTTOM
-                })
-                userData = description ?: text
-                addTapListener { mapObject, point ->
-                    moveCamera(point)
-                    mapObject.userData?.let {
-                        Toast.makeText(
-                            requireContext(),
-                            it.toString(),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                    editMarker(this)
-                    true
+                mapObject.userData?.let {
+                    Toast.makeText(
+                        requireContext(),
+                        it.toString(),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
+                editMarker(this)
+                true
             }
-        markers.add(marker)
+            addTapListener(tapListener)
+            markers[this] = tapListener
+        }
     }
 
     private fun moveCamera(point: Point) {
@@ -196,21 +199,11 @@ class MapFragment :
     }
 
     private fun requestLocationPermission() {
-        when {
+        when (PackageManager.PERMISSION_GRANTED) {
             ContextCompat.checkSelfPermission(
                 requireContext(),
                 Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED -> afterGrantedPermissions()
-            /*shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) ->*/
-                // Данная инструкция взята из yandex-demo и по сути дублирует
-                // инструкцию в ветке else, только здесь не обрабатывается результат
-                // запроса разрешения
-                // Поэтому я вообще решил эту ветку (shouldShow...) исключить
-                /*ActivityCompat.requestPermissions(
-                    requireActivity(),
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                    PackageManager.GET_PERMISSIONS
-                )*/
+            ) -> afterGrantedPermissions()
             else ->
                 requestPermissionsLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
