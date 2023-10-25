@@ -45,7 +45,7 @@ dependencies {
     def appcompat_version = "1.6.1"
     def mdc_version = "1.9.0"
     def constraint_layout_version = "2.1.4"
-    def activity_version = "1.7.1"
+    def activity_version = "1.7.2"
     def lifecycle_version = "2.6.1"
     def fragment_version = "1.5.7"
     def mapkit_version = "4.3.1-lite"
